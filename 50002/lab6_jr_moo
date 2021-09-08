@@ -1,0 +1,120 @@
+| include instruction macros and test jig
+.include beta.uasm
+.include lab6checkoff.uasm
+
+count_bull_cows:| your subroutine must have this name
+PUSH(LP)	| standard subroutine entry sequence
+PUSH(BP)
+MOVE(SP, BP)
+
+PUSH(R1)	| int a
+PUSH(R2)	| int b
+PUSH(R3)	| int bulls
+PUSH(R4)	| int cows
+PUSH(R5)	| int i
+PUSH(R6)	| int j
+PUSH(R7)	| int btemp
+PUSH(R8)	| int atry
+PUSH(R9)	| int btry
+PUSH(R10)	| int mask
+PUSH(R11)
+PUSH(R12) 
+PUSH(R13)
+PUSH(R14)
+
+LD(BP,-12,R1)	| assign parameter a 
+LD(BP,-16,R2)	| assign parameter b
+
+CMOVE(0,R3)	      | initialize int bulls = 0 
+CMOVE(0xF,R10)	      | initialize int mask = 0xF
+CMOVE(0,R5)	      | initialize int i = 0
+BEQ(R31,for_bulls,R31)| run for-loop to compute bulls
+
+compute_bulls:
+AND(R1,R10,R11)		| a & mask
+AND(R2,R10,R12)		| b & mask 
+CMPEQ(R11,R12,R13)	| if (a & mask) == (b & mask), a bull is found
+BEQ(R13,ifnot_bull,R31) | if (a & mask) != (b & mask) 
+| if (a & mask) == (b & mask) block con't
+ADDC(R3,1,R3)		| bulls = bulls + 1 
+OR(R1,R10,R1)		| a = a | mask
+OR(R2,R10,R2)		| b = b | mask
+
+| if (a & mask) != (b & mask) block con't
+ifnot_bull:
+SHLC(R10,4,R10)		  | mask = mask << 4
+ADDC(R5,1,R5)		  | i = i + 1 
+
+for_bulls: 
+CMPLTC(R5,4,R14)	  | check if i < 4
+BNE(R14,compute_bulls,R31)| run compute_bulls in for-loop
+
+
+CMOVE(0,R4)	       | initialize int cows = 0
+CMOVE(0,R5)	       | initialize int i = 0  
+BEQ(R31,for_cows_i,R31)| run for-loop_i
+
+compute_cows_i:
+ANDC(R1,0xF,R8)		  | atry = a & 0xF
+SHRC(R1,4,R1)		  | a = a >> 4
+CMPEQC(R8,0xF,R11)	  | if (atry != 0xF), not a bull so check for cow
+BNE(R11,if_bull_i,R31)	  | if (atry == 0xF)
+| if (atry != 0xF) block con't
+ADDC(R2,0,R7)		  | btemp = b
+CMOVE(0xF,R10)		  | mask = 0xF
+
+CMOVE(0,R6)	       | initalize int j = 0
+BEQ(R31,for_cows_j,R31)| run for-loop_j
+
+compute_cows_j: 
+ANDC(R7,0xF,R9)		  | btry = btemp & 0xF
+SHRC(R7,4,R7)		  | btemp = btemp >> 4
+CMPEQ(R9,R8,R12)	  | if (btry == atry), a cow is found
+BEQ(R12,ifnot_cows_j,R31) | if (btry != atry)
+| if (btry == atry) block con't
+ADDC(R4,1,R4)		  | cows = cows + 1 
+OR(R2,R10,R2)		  | b = b | mask
+BEQ(R31,if_bull_i,R31)	  | break j-for loop
+
+ifnot_cows_j:
+SHLC(R10,4,R10)		   | mask = mask << 4 
+ADDC(R6,1,R6)		   | j = j + 1 
+
+for_cows_j:
+CMPLTC(R6,4,R13)	   | check if j < 4 
+BNE(R13,compute_cows_j,R31)| run compute_cows in for-loop_j
+
+| if (atry == 0xF) block con't
+if_bull_i:
+ADDC(R5,1,R5)		   | i = i + 1
+
+for_cows_i:
+CMPLTC(R5,4,R14)	   | check if i < 4 
+BNE(R14,compute_cows_i,R31)| run compute_cows in for-loop_i 
+
+| encode result and return
+SHLC(R3,4,R3)		   | bulls << 4 
+ADD(R3,R4,R0)		   | return (bulls << 4) + cows 
+
+POP(R14)
+POP(R13)
+POP(R12)
+POP(R11)
+POP(R10)
+POP(R9)
+POP(R8)
+POP(R7)
+POP(R6)
+POP(R5)
+POP(R4)
+POP(R3)
+POP(R2)
+POP(R1)
+
+MOVE(BP,SP)		| standard subroutine exit sequence
+POP(BP)
+POP(LP)
+RTN()
+
+StackBase: LONG(.+4)	| Pointer to bottom of stack
+. = .+0x1000 	    	| Reserve space for stack...

@@ -1,0 +1,71 @@
+.include "nominal.jsim"
+.include "8clocks.jsim" 
+.include "lab2checkoff.jsim"
+
+* INVERTER: input is A, output is Z
+.subckt inv a z
+MPU1 z a vdd vdd PENH sw=10 sl=1
+MPD1 z a 0 0 NENH sw=8 sl=1 
+.ends
+
+* 2-input AND: inputs are A and B, output is Z
+.subckt and2 a b z 
+MPU1 2 a vdd vdd PENH sw=10 sl=1
+MPU2 2 b vdd vdd PENH sw=10 sl=1
+MPD1 2 a 1 0 NENH sw=8 sl=1
+MPD2 1 b 0 0 NENH sw=8 sl=1
+Xinv 2 z inv
+.ends
+
+* 2-input OR: inputs are A and B, output is Z
+.subckt or2 a b z 
+MPU1 1 a vdd vdd PENH sw=10 sl=1
+MPU2 2 b 1 vdd PENH sw=10 sl=1
+MPD1 2 a 0 0 NENH sw=8 sl=1 
+MPD2 2 b 0 0 NENH sw=8 sl=1 
+Xinv 2 z inv
+.ends
+
+* 2-input XOR: inputs are A and B, output is Z
+.subckt XOR2 a b z 
+Xinva a inv_a inv 
+MPU1 i3 inv_a vdd vdd PENH sw=10 sl=1
+MPU2 i2 a vdd vdd PENH sw=10 sl=1
+MPU3 z b i3 vdd PENH sw=10 sl=1
+XinvB b inv_b inv
+MPU4 z inv_b i2 vdd PENH sw=10 sl=1
+MPD1 z a i1 0 NENH sw=8 sl=1 
+Xinvb1 b inv_b inv 
+MPD2 z inv_b i1 0 NENH sw=8 sl=1
+MPD3 i1 b 0 0 NENH sw=8 sl=1
+Xinva1 a inv_a inv 
+MPD4 i1 inv_a 0 0 NENH sw=8 sl=1
+.ends
+
+* test the output of XOR2 - clk1 and clk2 into the inputs 
+*turn this whole section into comment
+*Xtest clk1 clk2 z XOR2
+*.tran 20ns
+*.plot clk1
+*.plot clk2
+*.plot z
+
+* X(instantiate a gate_circuit from the top) input1 input2 output gate_circuit
+.subckt FA A B Ci S Co 
+Xxor1g Ci out_xor1 S XOR2
+Xxor2g A B out_xor1 XOR2
+Xand1g Ci out_xor1 out_and1 AND2
+Xand2g A B out_and2 AND2
+Xor out_and1 out_and2 Co OR2
+.ends 
+
+.subckt ADDER4 a3 a2 a1 a0 b3 b2 b1 b0 s4 s3 s2 s1 s0
+* remember the node named "0" is the ground node
+* nodes c0 through c3 are internal to the ADDER module
+Xbit0 a0 b0 0 s0 c0 FA
+Xbit1 a1 b1 c0 s1 c1 FA
+Xbit2 a2 b2 c1 s2 c2 FA
+Xbit3 a3 b3 c2 s3 s4 FA
+.ends
+
+.plot Xtest.c0

@@ -1,0 +1,15 @@
+.include "nominal.jsim"
+.include "lab1checkoff.jsim"
+
+*using six MOSFETs, implement the complement of F as one large CMOS gate, including the INV, output is Z
+.subckt F A B C Z
+MPU1 1 C vdd vdd PENH sw=16 sl=1
+MPU2 3 A 1 1 PENH sw=16 sl=1  
+MPU3 3 B 1 1 PENH sw=16 sl=1 
+MPD1 3 A 2 0 NENH sw=16 sl=1
+MPD2 2 B 0 0 NENH sw=16 sl=1
+MPD3 3 C 0 0 NENH sw=16 sl=1
+
+MPU4 Z 3 vdd vdd PENH sw=16 sl=1
+MPD4 z 3 0 0 NENH sw=16 sl=1
+.ends  

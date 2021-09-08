@@ -1,0 +1,40 @@
+.include "nominal.jsim"
+.include "stdcell.jsim"
+.include "lab5regfile.jsim"
+
+*register files 
+
+.subckt regfile clk werf ra2sel ra[4:0] rb[4:0] rc[4:0]
++ wdata[31:0] radata[31:0] rbdata[31:0]
+
+//.connect radata[31:0] 0
+//.connect rbdata[31:0] 0
+
+XREGFILEra2mux ra2sel#5 rb[4:0] rc[4:0] ra2mux[4:0] mux2
+
+//XREGFILEwamux wasel#5 rc[4:0] vdd#4 0 wamuxoutput[4:0] mux2
+
+*3-port memory specification
+Xregfile
++ vdd 0 0 ra[4:0] adata[31:0] // A read port
++ vdd 0 0 ra2mux[4:0] bdata[31:0] // B read port
++ 0 clk werf rc[4:0] wdata[31:0] // write port
++ $memory width=32 nlocations=31
+
+*check ra1 and ra2mux for 11111 (31) 
+XREGFILEra11 ra1 ra2 andout1 and2
+XREGFILEra12 ra3 ra4 andout2 and2
+XREGFILEra13 andout1 andout2 andout3 and2
+XREGFILEra14 ra0 andout3 z1 and2
+
+XREGFILEra21 ra2mux1 ra2mux2 andout4 and2
+XREGFILEra22 ra2mux3 ra2mux4 andout5 and2
+XREGFILEra23 andout4 andout5 andout6 and2
+XREGFILEra24 ra2mux0 andout6 z2 and2
+
+XREGFILEdataA z1#32 adata[31:0] 0#32 radata[31:0] mux2
+XREGFILEdataB z2#32 bdata[31:0] 0#32 rbdata[31:0] mux2
+
+.ends
+
+

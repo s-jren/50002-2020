@@ -1,0 +1,328 @@
+.include "nominal.jsim"
+.include "stdcell.jsim"
+.include "lab5checkoff.jsim"
+
+*1-bit full adder
+.subckt FA a b cin sum cout
+X1 a b 1 xor2 
+X2 1 cin sum xor2 
+X3 a b 2 and2
+X4 1 cin 3 and2
+X5 2 3 cout or2 
+.ends 
+
+**********************************************************************
+
+*part a: adder unit
+.subckt adder32 ALUFN[0] A[31:0] B[31:0] s[31:0] z v n
+*B to XB 
+XxorB B[31:0] ALUFN[0]#32 XB[31:0] xor2 
+
+*32-bit adder
+*including ALUFN0 input for FA0 
+XFA0 A[0] XB[0] ALUFN[0] S[0] C[0] FA
+*carry-out ripple effect for the rest
+XFA A[31:1] XB[31:1] C[30:0] S[31:1] C[31:1] FA
+
+*output z - check for all S=0
+Xnor1 s[3:0] 1 nor4 
+Xnor2 s[7:4] 2 nor4
+Xnor3 s[11:8] 3 nor4
+Xnor4 s[15:12] 4 nor4
+Xnor5 s[19:16] 5 nor4
+Xnor6 s[23:20] 6 nor4
+Xnor7 s[27:24] 7 nor4
+Xnor8 s[31:28] 8 nor4
+Xand1 1 2 3 4 out1 and4
+Xand2 5 6 7 8 out2 and4
+Xand3 out1 out2 z and2
+
+*ouput v - overflow check
+XinvA A[31] Ai[31] inverter
+XinvB XB[31] XBi[31] inverter
+XinvS S[31] Si[31] inverter
+Xand01 A[31] XB[31] Si[31] p and3
+Xand02 Ai[31] XBi[31] S[31] o and3
+Xorr p o v or2 
+
+*output n - negative check 
+Xneg s[31] n buffer
+.ends
+
+**********************************************************************
+
+*part b: compare unit 
+.subckt compare32 ALUFN[2:1] z v n cmp[31:0]
+*upper 31 bits are always 0 
+.connect cmp[31:1] 0
+*a < b 
+Xxornv v n vxorn xor2
+*a <= b
+Xorz vxorn z orz or2
+*output for compare unit
+Xmux ALUFN2 ALUFN1 0 vxorn z orz cmp0 mux4
+.ends
+
+**********************************************************************
+
+*part c: boolean unit
+.subckt boole32 ALUFN[3:0] A[31:0] B[31:0] boole[31:0]
+Xmuxes A[31:0] B[31:0] ALUFN0#32 ALUFN1#32 ALUFN2#32 ALUFN3#32 boole[31:0] mux4
+.ends
+
+**********************************************************************
+
+*part d: shift unit 
+.subckt shift32 ALUFN[1:0] A[31:0] B[4:0] shift[31:0]
+
+XSHL4 B[4]#32 A[31:0] A[15:0] 0#16 W[31:0] mux2
+XSHL3 B[3]#32 W[31:0] W[23:0] 0#8 X[31:0] mux2 
+XSHL2 B[2]#32 X[31:0] X[27:0] 0#4 Y[31:0] mux2
+XSHL1 B[1]#32 Y[31:0] Y[29:0] 0#2 Z[31:0] mux2
+XSHL0 B[0]#32 Z[31:0] Z[30:0] 0 SHL[31:0] mux2 
+
+XSHR4 B[4]#32 A[31:0] 0#16 A[31:16] Q[31:0] mux2
+XSHR3 B[3]#32 Q[31:0] 0#8 Q[31:8] E[31:0] mux2
+XSHR2 B[2]#32 E[31:0] 0#4 E[31:4] R[31:0] mux2
+XSHR1 B[1]#32 R[31:0] 0#2 R[31:2] T[31:0] mux2
+XSHR0 B[0]#32 T[31:0] 0 T[31:1] SHR[31:0] mux2 
+
+XSRA4 B[4]#32 A[31:0] A[31]#16 A[31:16] S[31:0] mux2
+XSRA3 B[3]#32 S[31:0] S[31]#8 S[31:8] D[31:0] mux2
+XSRA2 B[2]#32 D[31:0] D[31]#4 D[31:4] F[31:0] mux2
+XSRA1 B[1]#32 F[31:0] F[31]#2 F[31:2] G[31:0] mux2
+XSRA0 B[0]#32 G[31:0] G[31] G[31:1] SRA[31:0] mux2
+
+Xshift ALUFN[0]#32 ALUFN[1]#32 SHL[31:0] SHR[31:0] 0#32 SRA[31:0] shift[31:0] mux4
+
+.ends
+
+**********************************************************************
+
+*part e: combine and make the ALU
+.subckt alu ALUFN[5:0] A[31:0] B[31:0] alu[31:0] z v n
+Xadderunit ALUFN[0] A[31:0] B[31:0] S[31:0] z v n adder32 
+Xbooleanunit ALUFN[3:0] A[31:0] B[31:0] boole[31:0] boole32
+Xshiftunit ALUFN[1:0] A[31:0] B[4:0] shift[31:0] shift32
+Xcompareunit ALUFN[2:1] z v n cmp[31:0] compare32
+XcombinemuxtoALU ALUFN[4]#32 ALUFN[5]#32 S[31:0] boole[31:0] shift[31:0] cmp[31:0] alu[31:0] mux4
+.ends
+
+
+**********************************************************************
+**********************************************************************
+**********************************************************************
+**********************************************************************
+**********************************************************************
+**********************************************************************
+**********************************************************************
+**********************************************************************
+**********************************************************************
+**********************************************************************
+
+
+*program counter 
+
+.subckt pc clk reset pcsel[2:0] JT[31:0] C[31:0] ia[31:0] PCadderoutput[31:0] 
+
+*Illop: 0x8000 0004
+XIllop01 I[31] constant1
+XIllop02 I[30:3] constant0
+XIllop03 I[2] constant1
+XIllop04 I[1:0] constant0
+
+*XAdr: 0x8000 0008
+XAdr01 A[31] constant1
+XAdr02 A[30:4] constant0
+XAdr03 A[3] constant1
+XAdr04 A[2:0] constant0
+
+Xpcselmux01 pcsel[2]#32 PCadderoutput[31:0] A[31:0] j[31:0] mux2
+Xpcselmux02 pcsel[1]#32 pcsel[0]#32 j[31:0] JT[31:0] C[31:0] I[31:0] 
++ pcselmuxoutput[31:0] mux4
+
+*4 in binary 
+X4bin01 B[31:3] constant0 
+X4bin02 B[2] constant1
+X4bin03 B[1:0] constant0
+
+*adding 4 at each clock cycle
+XPCadder 0 ia[31:0] B[31:0] PCadderoutput[31:0] z v n adder32
+
+XPCresetmux reset#32 pcselmuxoutput[31:0] vdd 0#31 PCresetmuxoutput[31:0] mux2 
+
+XPCDreg PCresetmuxoutput[31:0] clk#32 ia[31:0] dreg
+
+.ends
+
+**********************************************************************
+
+*register files 
+
+.subckt regfile clk werf wasel ra2sel ra[4:0] rb[4:0] rc[4:0]
++ wdata[31:0] radata[31:0] rbdata[31:0]
+
+XREGFILEra2mux ra2sel#5 rb[4:0] rc[4:0] ra2mux[4:0] mux2
+
+XREGFILEwamux wasel#5 rc[4:0] vdd#4 0 wamux[4:0] mux2
+
+*3-port memory specification
+Xregfile
++ vdd 0 0 ra[4:0] adata[31:0] // A read port
++ vdd 0 0 ra2mux[4:0] bdata[31:0] // B read port
++ 0 clk werf wamux[4:0] wdata[31:0] // write port
++ $memory width=32 nlocations=31
+
+*check ra1 and ra2mux for 11111
+XREGFILEra11 ra1 ra2 andout1 and2
+XREGFILEra12 ra3 ra4 andout2 and2
+XREGFILEra13 andout1 andout2 andout3 and2
+XREGFILEra14 ra0 andout3 z1 and2
+
+XREGFILEra21 ra2mux1 ra2mux2 andout4 and2
+XREGFILEra22 ra2mux3 ra2mux4 andout5 and2
+XREGFILEra23 andout4 andout5 andout6 and2
+XREGFILEra24 ra2mux0 andout6 z2 and2
+
+XREGFILEdataA z1#32 adata[31:0] 0#32 radata[31:0] mux2
+XREGFILEdataB z2#32 bdata[31:0] 0#32 rbdata[31:0] mux2
+
+.ends
+
+
+**********************************************************************
+
+
+*control logic
+
+.subckt ctl reset id[31:26] z pcsel[2:0] wasel asel ra2sel bsel alufn[5:0] 
++ wdsel[1:0] werf moe wr
+
+Xctl vdd 0 0 id[31:26] // one read port
++ zpcsel[2:0] wasel asel ra2sel bsel alufn[5:0] wdsel[1:0] werf moe xwr
++ $memory width=18 nlocations=64 contents=(
++ 0b011100000000000100 // opcode=0b000000
++ 0b011100000000000100 // opcode=0b000001
++ 0b011100000000000100 // 2
++ 0b011100000000000100 // 3
++ 0b011100000000000100 // 4
++ 0b011100000000000100 // 5
++ 0b011100000000000100 // 6
++ 0b011100000000000100 // 7
++ 0b011100000000000100 // 8
++ 0b011100000000000100 // 9
++ 0b011100000000000100 // 10
++ 0b011100000000000100 // 11
++ 0b011100000000000100 // 12
++ 0b011100000000000100 // 13
++ 0b011100000000000100 // 14
++ 0b011100000000000100 // 15
++ 0b011100000000000100 // 16
++ 0b011100000000000100 // 17
++ 0b011100000000000100 // 18
++ 0b011100000000000100 // 19
++ 0b011100000000000100 // 20
++ 0b011100000000000100 // 21
++ 0b100100000000000100 // 22 IRQ
++ 0b011100000000000100 // 23
++ 0b000000100000010110 // 24 LD 0x18
++ 0b000001100000000001 // 25 ST 
++ 0b011100000000000100 // 26
++ 0b010000000000000100 // 27 JMP
++ 0b011100000000000100 // 28
++ 0b001000000000000100 // 29 BEQ not branching by default
++ 0b001000000000000100 // 30 BNE branching by default
++ 0b000010001101010110 // 31 LDR 
++ 0b000000000000001100 // 32 ADD
++ 0b000000000000101100 // 33 SUB
++ 0b011100000000000100 // 34 MUL - 
++ 0b011100000000000100 // 35 DIV - 
++ 0b000000011001101100 // 36 CMPEQ
++ 0b000000011010101100 // 37 CMPLT
++ 0b000000011011101100 // 38 CMPLE
++ 0b011100000000000100 // 39
++ 0b000000001100001100 // 40 AND
++ 0b000000001111001100 // 41 OR
++ 0b000000001011001100 // 42 XOR
++ 0b011100000000000100 // 43
++ 0b000000010000001100 // 44 SHL
++ 0b000000010000101100 // 45 SHR
++ 0b000000010001101100 // 46 SHA
++ 0b011100000000000100 // 47
++ 0b000000100000001100 // 48 ADDC
++ 0b000000100000101100 // 49 SUBC
++ 0b011100000000000100 // 50 MULC - 
++ 0b011100000000000100 // 51 DIVC -
++ 0b000000111001101100 // 52 CMPEQC
++ 0b000000111010101100 // 53 CMPLTC
++ 0b000000111011101100 // 54 CMPLEC
++ 0b011100000000000100 // 55
++ 0b000000101100001100 // 56 ANDC
++ 0b000000101111001100 // 57 ORC
++ 0b000000101011001100 // 58 XORC
++ 0b011100000000000100 // 59
++ 0b000000110000001100 // 60 SHLC
++ 0b000000110000101100 // 61 SHRC
++ 0b000000110001101100 // 62 SRAC
++ 0b011100000000000100 // 63
++ )
+
+*WR = 0 when reset = 1
+xctlmux reset xwr 0 wr mux2
+
+Xinverter z r inverter
+
+*check for BEQ OPCODE 011101
+Xinv_id31 id31 id31_inv inverter
+Xinv_id27 id27 id27_inv inverter
+Xand4_BEQ id31_inv id30 id29 id28 and4_BEQout and4
+XisBEQ and4_BEQout id27_inv id26 is_BEQ and3
+
+*check for BNE OPCODE 011110
+Xinv_id26 id26 id26_inv inverter
+XisBNE and4_BEQout id27 id26_inv is_BNE and3
+
+*postprocessing 
+Xctlp01 is_BEQ is_BNE zpcsel[0] z r 0 pcsel[0] mux4
+Xctlp02 zpcsel[2:1] pcsel[2:1] buffer
+
+.ends
+
+**********************************************************************
+
+.subckt check_nor a[31:0] z
+Xnor a[31:0] b[16:1] nor2
+Xand01 b[16:1] c[4:1] and4
+Xand02 c[4:1] z and4
+.ends
+
+*basic block 
+
+.subckt beta clk reset irq ia[31:0] id[31:0] ma[31:0]
++ moe mrd[31:0] wr mwd[31:0]
+
+XCheck aseldata[31:0] z check_nor
+XJT aseldata[31] ia[31] JT[31] and2
+XplusC 0 PCadderoutput[31:0] id[15]#14 id[15:0] 0#2 C[31:0] zz vv nn adder32 
+
+XPC clk reset pcsel[2:0] JT[31] aseldata[30:2] 0#2 C[31:0] 
++ ia[31:0] PCadderoutput[31:0] pc 
+
+XREGFILE clk werf wasel ra2sel id[20:16] id[15:11] id[25:21] 
++ wdata[31:0] aseldata[31:0] mwd[31:0] regfile
+
+XCONTROL reset op[5:0] z pcsel[2:0] wasel asel ra2sel bsel alufn[5:0] 
++ wdsel[1:0] werf moe wr ctl
+
+Xaselmux asel#32 aseldata[31:0] 0 C[30:0] radata[31:0] mux2
+Xbselmux bsel#32 mwd[31:0] id[15]#16 id[15:0] rbdata[31:0] mux2
+Xwdselmux wdsel[1]#32 wdsel[0]#32 PCadderoutput[31:0] 
++ mrd[31:0] ma[31:0] 0#32 wdata[31:0] mux4
+
+XALU alufn[5:0] radata[31:0] rbdata[31:0] ma[31:0] zzz vvv nnn alu 
+
+Xirq ia[31]#6 irq#6 id[31:26] id[31:26] 0 vdd 0 vdd#2 0 id[31:26] op[5:0] mux4 
+
+.ends
+
+
